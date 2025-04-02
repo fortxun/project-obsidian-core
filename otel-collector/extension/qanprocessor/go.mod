@@ -40,3 +40,5 @@ require (
 	google.golang.org/grpc v1.71.1 // indirect
 	google.golang.org/protobuf v1.36.6 // indirect
 )
+
+replace github.com/gogo/protobuf => github.com/gogo/protobuf v1.3.2

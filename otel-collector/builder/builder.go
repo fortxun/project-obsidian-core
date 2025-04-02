@@ -16,7 +16,7 @@ func main() {
 		Distribution: builder.Distribution{
 			Name:    "obsidian-core-collector",
 			Version: "0.1.0",
-			OtelColVersion: "0.96.0",
+			OtelColVersion: "0.96.0", 
 			OutputPath:     "../collector",
 			Go: builder.GoConfig{
 				OS:   []string{"linux", "darwin"},

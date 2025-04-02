@@ -1,27 +1,9 @@
-FROM golang:1.21 AS builder
+FROM otel/opentelemetry-collector-contrib:0.96.0 as otelcol
 
-WORKDIR /build
+FROM alpine:3.19
 
-# Copy module files first for better caching
-COPY go.mod go.sum ./
-RUN go mod download
-
-# Copy extension code
-COPY extension/ extension/
-
-# Build the OpenTelemetry Collector with our custom components
-COPY builder/builder.go .
-COPY builder/go.mod builder/go.sum ./builder/
-RUN cd builder && go run builder.go
-
-# Final image
-FROM alpine:3.18
-
-RUN apk --no-cache add ca-certificates libc6-compat && \
-    update-ca-certificates
-
-# Copy the built collector binary
-COPY --from=builder /build/collector /bin/
+COPY --from=otelcol /otelcol-contrib /otelcol
+COPY config/otel-config.yaml /etc/otel-collector/otel-config.yaml
 
 # Create non-root user
 RUN addgroup -g 10001 otel && \
@@ -29,7 +11,7 @@ RUN addgroup -g 10001 otel && \
 
 USER otel
 
-EXPOSE 4317 4318 55678 55679
+EXPOSE 4317 4318
 VOLUME ["/etc/otel-collector"]
-ENTRYPOINT ["/bin/collector"]
+ENTRYPOINT ["/otelcol"]
 CMD ["--config=/etc/otel-collector/otel-config.yaml"]

@@ -9,7 +9,7 @@ import (
 	"go.opentelemetry.io/collector/pdata/plog"
 	"go.uber.org/zap"
 
-	"github.com/user/project-obsidian-core/otel-collector/extension/qanprocessor/adaptive"
+	"github.com/ewen/project-obsidian-core/otel-collector/extension/qanprocessor/adaptive"
 )
 
 // AdaptiveCollector extends the standard MySQL collector with

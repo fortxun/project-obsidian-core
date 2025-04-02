@@ -4,7 +4,7 @@ import (
 	"log"
 	"os"
 
-	"github.com/open-telemetry/opentelemetry-collector/cmd/builder"
+	"go.opentelemetry.io/collector/cmd/builder"
 	"go.uber.org/zap"
 )
 
@@ -25,21 +25,14 @@ func main() {
 		},
 		Receivers: []builder.Component{
 			{Name: "otlp", GoMod: "go.opentelemetry.io/collector/receiver/otlpreceiver v0.96.0"},
-			{Name: "mysql", GoMod: "github.com/open-telemetry/opentelemetry-collector-contrib/receiver/mysqlreceiver v0.96.0"},
-			{Name: "postgresql", GoMod: "github.com/open-telemetry/opentelemetry-collector-contrib/receiver/postgresqlreceiver v0.96.0"},
 		},
 		Processors: []builder.Component{
 			{Name: "batch", GoMod: "go.opentelemetry.io/collector/processor/batchprocessor v0.96.0"},
-			{Name: "memory_limiter", GoMod: "go.opentelemetry.io/collector/processor/memorylimiterprocessor v0.96.0"},
-			{Name: "qanprocessor", GoMod: "github.com/project-obsidian-core/otel-collector/extension/qanprocessor v0.1.0"},
 		},
 		Exporters: []builder.Component{
-			{Name: "otlp", GoMod: "github.com/open-telemetry/opentelemetry-collector-contrib/exporter/otlpexporter v0.96.0"},
 			{Name: "logging", GoMod: "go.opentelemetry.io/collector/exporter/loggingexporter v0.96.0"},
 		},
-		Connectors: []builder.Component{},
 		Extensions: []builder.Component{
-			{Name: "zpages", GoMod: "go.opentelemetry.io/collector/extension/zpagesextension v0.96.0"},
 			{Name: "health_check", GoMod: "go.opentelemetry.io/collector/extension/healthcheckextension v0.96.0"},
 		},
 	}

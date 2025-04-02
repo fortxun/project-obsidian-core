@@ -1,4 +1,4 @@
-module github.com/project-obsidian-core/otel-collector/extension/qanprocessor
+module github.com/ewen/project-obsidian-core/otel-collector/extension/qanprocessor
 
 go 1.21
 

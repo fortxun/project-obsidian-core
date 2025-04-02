@@ -1,0 +1,167 @@
+version: '3.8'
+
+services:
+  # OpenTelemetry Collector
+  otel-collector:
+    image: otel/opentelemetry-collector-contrib:latest
+    container_name: obsidian-otel-collector
+    command: ["--config=/etc/otel/config.yaml"]
+    volumes:
+      - ../otel-collector/config/otel-config.yaml:/etc/otel/config.yaml
+    environment:
+      - MYSQL_HOST=${MYSQL_HOST}
+      - MYSQL_PORT=${MYSQL_PORT}
+      - MYSQL_USER=${MYSQL_USER}
+      - MYSQL_PASSWORD=${MYSQL_PASSWORD}
+      - POSTGRES_HOST=${POSTGRES_HOST}
+      - POSTGRES_PORT=${POSTGRES_PORT}
+      - POSTGRES_USER=${POSTGRES_USER}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+      - POSTGRES_DB=${POSTGRES_DB}
+      - DRUID_ROUTER_URL=${DRUID_ROUTER_URL}
+      - OTEL_METRICS_INTERVAL=${OTEL_METRICS_INTERVAL:-60}
+    networks:
+      - obsidian-network
+    depends_on:
+      - druid-router
+    mem_limit: 512m
+    restart: unless-stopped
+    
+  # Druid Coordinator+Overlord
+  druid-coordinator:
+    image: apache/druid:latest
+    container_name: obsidian-druid-coordinator
+    volumes:
+      - druid-coordinator-data:/opt/druid/var
+    environment:
+      - DRUID_LOG4J=<?xml version="1.0" encoding="UTF-8"?><Configuration status="WARN"><Appenders><Console name="Console" target="SYSTEM_OUT"><PatternLayout pattern="%d{ISO8601} %p [%t] %c - %m%n"/></Console></Appenders><Loggers><Root level="info"><AppenderRef ref="Console"/></Root></Loggers></Configuration>
+      - DRUID_SINGLE_NODE_CONF=micro-quickstart
+      - DRUID_XMX=${DRUID_COORDINATOR_HEAP_SIZE:-1g}
+      - DRUID_XMS=${DRUID_COORDINATOR_HEAP_SIZE:-1g}
+      - DRUID_METADATA_STORAGE_TYPE=derby
+      - DRUID_METADATA_STORAGE_CONNECTOR_CONNECTURI=jdbc:derby://localhost:1527/var/druid/metadata.db;create=true
+      - DRUID_COORDINATOR_BALANCER_STRATEGY=cachingCost
+    command:
+      - coordinator
+    ports:
+      - "127.0.0.1:8081:8081"
+    networks:
+      - obsidian-network
+    mem_limit: 1.5g
+    restart: unless-stopped
+
+  # Druid Broker+Router
+  druid-broker:
+    image: apache/druid:latest
+    container_name: obsidian-druid-broker
+    volumes:
+      - druid-broker-data:/opt/druid/var
+    environment:
+      - DRUID_LOG4J=<?xml version="1.0" encoding="UTF-8"?><Configuration status="WARN"><Appenders><Console name="Console" target="SYSTEM_OUT"><PatternLayout pattern="%d{ISO8601} %p [%t] %c - %m%n"/></Console></Appenders><Loggers><Root level="info"><AppenderRef ref="Console"/></Root></Loggers></Configuration>
+      - DRUID_XMX=${DRUID_BROKER_HEAP_SIZE:-1g}
+      - DRUID_XMS=${DRUID_BROKER_HEAP_SIZE:-1g}
+      - DRUID_SINGLE_NODE_CONF=micro-quickstart
+      - DRUID_PROCESSING_BUFFER_SIZE_BYTES=100000000
+    command:
+      - broker
+    depends_on:
+      - druid-coordinator
+    ports:
+      - "127.0.0.1:8082:8082"
+    networks:
+      - obsidian-network
+    mem_limit: 1.5g
+    restart: unless-stopped
+
+  # Druid Router
+  druid-router:
+    image: apache/druid:latest
+    container_name: obsidian-druid-router
+    volumes:
+      - druid-router-data:/opt/druid/var
+    environment:
+      - DRUID_LOG4J=<?xml version="1.0" encoding="UTF-8"?><Configuration status="WARN"><Appenders><Console name="Console" target="SYSTEM_OUT"><PatternLayout pattern="%d{ISO8601} %p [%t] %c - %m%n"/></Console></Appenders><Loggers><Root level="info"><AppenderRef ref="Console"/></Root></Loggers></Configuration>
+      - DRUID_SINGLE_NODE_CONF=micro-quickstart
+    command:
+      - router
+    depends_on:
+      - druid-coordinator
+      - druid-broker
+    ports:
+      - "127.0.0.1:8888:8888"
+    networks:
+      - obsidian-network
+    mem_limit: 512m
+    restart: unless-stopped
+
+  # Druid Historical
+  druid-historical:
+    image: apache/druid:latest
+    container_name: obsidian-druid-historical
+    volumes:
+      - druid-historical-data:/opt/druid/var
+    environment:
+      - DRUID_LOG4J=<?xml version="1.0" encoding="UTF-8"?><Configuration status="WARN"><Appenders><Console name="Console" target="SYSTEM_OUT"><PatternLayout pattern="%d{ISO8601} %p [%t] %c - %m%n"/></Console></Appenders><Loggers><Root level="info"><AppenderRef ref="Console"/></Root></Loggers></Configuration>
+      - DRUID_XMX=${DRUID_HISTORICAL_HEAP_SIZE:-1g}
+      - DRUID_XMS=${DRUID_HISTORICAL_HEAP_SIZE:-1g}
+      - DRUID_SINGLE_NODE_CONF=micro-quickstart
+      - DRUID_PROCESSING_BUFFER_SIZE_BYTES=100000000
+      - DRUID_SEGMENT_CACHE_LOCATIONS=[{"path":"/opt/druid/var/druid/segment-cache","maxSize":10737418240}]
+    command:
+      - historical
+    depends_on:
+      - druid-coordinator
+    networks:
+      - obsidian-network
+    mem_limit: 1.5g
+    restart: unless-stopped
+
+  # Druid MiddleManager
+  druid-middlemanager:
+    image: apache/druid:latest
+    container_name: obsidian-druid-middlemanager
+    volumes:
+      - druid-middlemanager-data:/opt/druid/var
+    environment:
+      - DRUID_LOG4J=<?xml version="1.0" encoding="UTF-8"?><Configuration status="WARN"><Appenders><Console name="Console" target="SYSTEM_OUT"><PatternLayout pattern="%d{ISO8601} %p [%t] %c - %m%n"/></Console></Appenders><Loggers><Root level="info"><AppenderRef ref="Console"/></Root></Loggers></Configuration>
+      - DRUID_XMX=${DRUID_MIDDLEMANAGER_HEAP_SIZE:-1g}
+      - DRUID_XMS=${DRUID_MIDDLEMANAGER_HEAP_SIZE:-1g}
+      - DRUID_SINGLE_NODE_CONF=micro-quickstart
+    command:
+      - middleManager
+    depends_on:
+      - druid-coordinator
+    networks:
+      - obsidian-network
+    mem_limit: 1.5g
+    restart: unless-stopped
+
+  # JupyterLab
+  jupyterlab:
+    image: jupyter/scipy-notebook:latest
+    container_name: obsidian-jupyterlab
+    volumes:
+      - ../jupyter-notebooks:/home/jovyan/work
+    environment:
+      - JUPYTER_TOKEN=${JUPYTER_TOKEN:-obsidian}
+      - JUPYTER_PASSWORD=${JUPYTER_PASSWORD:-obsidian}
+    ports:
+      - "127.0.0.1:8888:8888"
+    networks:
+      - obsidian-network
+    depends_on:
+      - druid-broker
+    mem_limit: 1g
+    restart: unless-stopped
+    command: "start-notebook.sh --NotebookApp.token=${JUPYTER_TOKEN:-obsidian} --NotebookApp.password=${JUPYTER_PASSWORD:-obsidian}"
+
+networks:
+  obsidian-network:
+    driver: bridge
+
+volumes:
+  druid-coordinator-data:
+  druid-broker-data:
+  druid-router-data:
+  druid-historical-data:
+  druid-middlemanager-data:

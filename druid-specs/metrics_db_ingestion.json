@@ -1,0 +1,64 @@
+{
+  "type": "index_parallel",
+  "spec": {
+    "ioConfig": {
+      "type": "index_parallel",
+      "inputSource": {
+        "type": "inline",
+        "data": ""
+      },
+      "inputFormat": {
+        "type": "json"
+      }
+    },
+    "tuningConfig": {
+      "type": "index_parallel",
+      "maxRowsInMemory": 25000,
+      "maxBytesInMemory": 100000000,
+      "partitionsSpec": {
+        "type": "dynamic"
+      }
+    },
+    "dataSchema": {
+      "dataSource": "metrics_db",
+      "timestampSpec": {
+        "column": "__time",
+        "format": "auto"
+      },
+      "dimensionsSpec": {
+        "dimensions": [
+          "resource.instance.id",
+          "db.system",
+          "metric.name",
+          {
+            "name": "metric.labels",
+            "type": "json"
+          }
+        ]
+      },
+      "metricsSpec": [
+        {
+          "type": "doubleSum",
+          "name": "metric.value",
+          "fieldName": "metric.value"
+        },
+        {
+          "type": "doubleMax",
+          "name": "metric.max",
+          "fieldName": "metric.max"
+        },
+        {
+          "type": "doubleMin",
+          "name": "metric.min",
+          "fieldName": "metric.min"
+        }
+      ],
+      "granularitySpec": {
+        "type": "uniform",
+        "segmentGranularity": "HOUR",
+        "queryGranularity": "SECOND",
+        "rollup": true
+      }
+    }
+  }
+}

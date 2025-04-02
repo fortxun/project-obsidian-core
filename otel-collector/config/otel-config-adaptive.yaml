@@ -1,0 +1,41 @@
+receivers:
+  otlp:
+    protocols:
+      grpc:
+        endpoint: 0.0.0.0:4317
+      http:
+        endpoint: 0.0.0.0:4318
+
+processors:
+  batch:
+
+extensions:
+  # Custom QAN processor with adaptive polling for MySQL
+  qanprocessor:
+    mysql:
+      enabled: true
+      endpoint: ${env:MYSQL_HOST}:${env:MYSQL_PORT}
+      username: ${env:MYSQL_USER}
+      password: ${env:MYSQL_PASSWORD}
+      # Set to "adaptive" to use adaptive polling
+      collection_interval: "adaptive"
+      # Configure adaptive behavior
+      adaptive:
+        base_interval: 1  # Base interval in seconds
+        state_directory: "/var/otel/governor_state"
+
+exporters:
+  logging:
+    verbosity: detailed
+  otlp:
+    endpoint: ${env:OTLP_ENDPOINT}
+    tls:
+      insecure: true
+
+service:
+  pipelines:
+    logs:
+      receivers: [otlp]
+      processors: [batch]
+      exporters: [otlp, logging]
+  extensions: [qanprocessor]

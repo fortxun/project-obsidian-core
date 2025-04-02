@@ -1,0 +1,89 @@
+receivers:
+  # OTLP receiver for general telemetry
+  otlp:
+    protocols:
+      grpc:
+        endpoint: 0.0.0.0:4317
+      http:
+        endpoint: 0.0.0.0:4318
+
+  # MySQL metrics receiver
+  mysqlreceiver:
+    endpoint: ${env:MYSQL_HOST}:${env:MYSQL_PORT}
+    username: ${env:MYSQL_USER}
+    password: ${env:MYSQL_PASSWORD}
+    collection_interval: ${env:OTEL_METRICS_INTERVAL}s
+
+  # PostgreSQL metrics receiver
+  postgresqlreceiver:
+    endpoint: ${env:POSTGRES_HOST}:${env:POSTGRES_PORT}
+    username: ${env:POSTGRES_USER}
+    password: ${env:POSTGRES_PASSWORD}
+    databases: [${env:POSTGRES_DB}]
+    collection_interval: ${env:OTEL_METRICS_INTERVAL}s
+
+processors:
+  # Standard processors
+  batch:
+    send_batch_size: 10000
+    timeout: 10s
+  
+  memory_limiter:
+    check_interval: 5s
+    limit_percentage: 80
+    spike_limit_percentage: 25
+
+  # Custom QAN processor
+  qanprocessor:
+    mysql:
+      enabled: true
+      endpoint: ${env:MYSQL_HOST}:${env:MYSQL_PORT}
+      username: ${env:MYSQL_USER}
+      password: ${env:MYSQL_PASSWORD}
+      collection_interval: ${env:OTEL_METRICS_INTERVAL}
+    
+    postgresql:
+      enabled: true
+      endpoint: ${env:POSTGRES_HOST}:${env:POSTGRES_PORT}
+      username: ${env:POSTGRES_USER}
+      password: ${env:POSTGRES_PASSWORD}
+      database: ${env:POSTGRES_DB}
+      collection_interval: ${env:OTEL_METRICS_INTERVAL}
+
+exporters:
+  # OTLP exporter for Druid
+  otlp:
+    endpoint: ${env:DRUID_HOST}:${env:DRUID_PORT}
+    tls:
+      insecure: true
+
+  # Logging exporter for debugging
+  logging:
+    verbosity: detailed
+
+extensions:
+  health_check:
+    endpoint: 0.0.0.0:13133
+  
+  zpages:
+    endpoint: 0.0.0.0:55679
+
+service:
+  extensions: [health_check, zpages]
+  pipelines:
+    # Standard metrics pipeline for MySQL and PostgreSQL
+    metrics:
+      receivers: [mysqlreceiver, postgresqlreceiver]
+      processors: [memory_limiter, batch]
+      exporters: [otlp, logging]
+    
+    # Special pipeline for QAN logs
+    logs:
+      processors: [memory_limiter, batch, qanprocessor]
+      exporters: [otlp, logging]
+    
+    # Pipeline for consuming OTLP data
+    traces:
+      receivers: [otlp]
+      processors: [memory_limiter, batch]
+      exporters: [otlp, logging]

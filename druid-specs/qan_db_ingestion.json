@@ -1,0 +1,100 @@
+{
+  "type": "index_parallel",
+  "spec": {
+    "ioConfig": {
+      "type": "index_parallel",
+      "inputSource": {
+        "type": "inline",
+        "data": ""
+      },
+      "inputFormat": {
+        "type": "json"
+      }
+    },
+    "tuningConfig": {
+      "type": "index_parallel",
+      "maxRowsInMemory": 25000,
+      "maxBytesInMemory": 100000000,
+      "partitionsSpec": {
+        "type": "dynamic"
+      }
+    },
+    "dataSchema": {
+      "dataSource": "qan_db",
+      "timestampSpec": {
+        "column": "__time",
+        "format": "auto"
+      },
+      "dimensionsSpec": {
+        "dimensions": [
+          "resource.instance.id",
+          "db.system",
+          "db.statement.digest",
+          "db.statement.sample",
+          "db.schema",
+          "db.query.id",
+          "db.user.id",
+          "db.name.id"
+        ]
+      },
+      "metricsSpec": [
+        {
+          "type": "longSum",
+          "name": "sum_calls",
+          "fieldName": "db.query.calls.delta"
+        },
+        {
+          "type": "doubleSum",
+          "name": "sum_total_exec_time",
+          "fieldName": "db.query.total_timer_wait.delta"
+        },
+        {
+          "type": "longSum",
+          "name": "sum_errors",
+          "fieldName": "db.query.errors.delta"
+        },
+        {
+          "type": "longSum",
+          "name": "sum_rows_examined",
+          "fieldName": "db.query.rows_examined.delta"
+        },
+        {
+          "type": "longSum",
+          "name": "sum_rows_sent",
+          "fieldName": "db.query.rows_sent.delta"
+        },
+        {
+          "type": "longSum",
+          "name": "sum_temp_tables",
+          "fieldName": "db.query.created_tmp_tables.delta"
+        },
+        {
+          "type": "longSum",
+          "name": "sum_temp_disk_tables",
+          "fieldName": "db.query.created_tmp_disk_tables.delta"
+        },
+        {
+          "type": "longSum",
+          "name": "sum_no_index_used",
+          "fieldName": "db.query.no_index_used.delta"
+        },
+        {
+          "type": "doubleSum",
+          "name": "sum_blk_read_time",
+          "fieldName": "db.query.blk_read_time.delta"
+        },
+        {
+          "type": "doubleSum",
+          "name": "sum_blk_write_time",
+          "fieldName": "db.query.blk_write_time.delta"
+        }
+      ],
+      "granularitySpec": {
+        "type": "uniform",
+        "segmentGranularity": "HOUR",
+        "queryGranularity": "SECOND",
+        "rollup": false
+      }
+    }
+  }
+}

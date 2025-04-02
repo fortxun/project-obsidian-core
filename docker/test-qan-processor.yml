@@ -1,0 +1,78 @@
+version: '3.8'
+
+services:
+  # Test MySQL instance with performance_schema enabled
+  mysql:
+    image: mysql:8.0
+    container_name: obsidian-test-mysql
+    environment:
+      MYSQL_ROOT_PASSWORD: root
+      MYSQL_DATABASE: test
+      MYSQL_USER: monitor_user
+      MYSQL_PASSWORD: password
+    ports:
+      - "13306:3306"
+    command:
+      - --performance-schema=ON
+      - --performance-schema-consumer-events-statements-current=ON
+      - --performance-schema-consumer-events-statements-history=ON
+      - --performance-schema-consumer-events-statements-history-long=ON
+    volumes:
+      - mysql-data:/var/lib/mysql
+      - ../scripts/mysql-init.sql:/docker-entrypoint-initdb.d/init.sql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-proot"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  # Test PostgreSQL instance with pg_stat_statements enabled
+  postgres:
+    image: postgres:13
+    container_name: obsidian-test-postgres
+    environment:
+      POSTGRES_USER: monitor_user
+      POSTGRES_PASSWORD: password
+    ports:
+      - "15432:5432"
+    command:
+      - -c
+      - shared_preload_libraries=pg_stat_statements
+      - -c
+      - pg_stat_statements.max=10000
+      - -c
+      - pg_stat_statements.track=all
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+      - ../scripts/postgres-init.sql:/docker-entrypoint-initdb.d/init.sql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U monitor_user"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  # Test query generator for MySQL
+  mysql-workload:
+    image: mysql:8.0
+    container_name: obsidian-mysql-workload
+    depends_on:
+      mysql:
+        condition: service_healthy
+    volumes:
+      - ../scripts/mysql-workload.sh:/workload.sh
+    entrypoint: ["/bin/bash", "/workload.sh"]
+
+  # Test query generator for PostgreSQL
+  postgres-workload:
+    image: postgres:13
+    container_name: obsidian-postgres-workload
+    depends_on:
+      postgres:
+        condition: service_healthy
+    volumes:
+      - ../scripts/postgres-workload.sh:/workload.sh
+    entrypoint: ["/bin/bash", "/workload.sh"]
+
+volumes:
+  mysql-data:
+  postgres-data:

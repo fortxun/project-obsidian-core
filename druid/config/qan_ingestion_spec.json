@@ -1,0 +1,62 @@
+{
+  "type": "otlp",
+  "dataSchema": {
+    "dataSource": "qan_db",
+    "timestampSpec": {
+      "column": "__time",
+      "format": "auto"
+    },
+    "dimensionsSpec": {
+      "dimensions": [
+        "db.system",
+        "resource.instance.id",
+        {"name": "db.statement.digest", "type": "string"},
+        {"name": "db.statement.sample", "type": "string"},
+        {"name": "db.query.id", "type": "string"},
+        {"name": "db.schema", "type": "string"},
+        {"name": "db.user.id", "type": "string"},
+        {"name": "db.name.id", "type": "string"}
+      ]
+    },
+    "metricsSpec": [
+      {"name": "db.query.calls.delta", "type": "longSum", "fieldName": "db.query.calls.delta"},
+      {"name": "db.query.total_timer_wait.delta", "type": "longSum", "fieldName": "db.query.total_timer_wait.delta"},
+      {"name": "db.query.lock_time.delta", "type": "longSum", "fieldName": "db.query.lock_time.delta"},
+      {"name": "db.query.errors.delta", "type": "longSum", "fieldName": "db.query.errors.delta"},
+      {"name": "db.query.warnings.delta", "type": "longSum", "fieldName": "db.query.warnings.delta"},
+      {"name": "db.query.rows_affected.delta", "type": "longSum", "fieldName": "db.query.rows_affected.delta"},
+      {"name": "db.query.rows_sent.delta", "type": "longSum", "fieldName": "db.query.rows_sent.delta"},
+      {"name": "db.query.rows_examined.delta", "type": "longSum", "fieldName": "db.query.rows_examined.delta"},
+      {"name": "db.query.created_tmp_tables.delta", "type": "longSum", "fieldName": "db.query.created_tmp_tables.delta"},
+      {"name": "db.query.created_tmp_disk_tables.delta", "type": "longSum", "fieldName": "db.query.created_tmp_disk_tables.delta"},
+      {"name": "db.query.sort_rows.delta", "type": "longSum", "fieldName": "db.query.sort_rows.delta"},
+      {"name": "db.query.no_index_used.delta", "type": "longSum", "fieldName": "db.query.no_index_used.delta"},
+      {"name": "db.query.no_good_index_used.delta", "type": "longSum", "fieldName": "db.query.no_good_index_used.delta"},
+      {"name": "db.query.total_plan_time.delta", "type": "doubleSum", "fieldName": "db.query.total_plan_time.delta"},
+      {"name": "db.query.total_exec_time.delta", "type": "doubleSum", "fieldName": "db.query.total_exec_time.delta"},
+      {"name": "db.query.blk_read_time.delta", "type": "doubleSum", "fieldName": "db.query.blk_read_time.delta"},
+      {"name": "db.query.blk_write_time.delta", "type": "doubleSum", "fieldName": "db.query.blk_write_time.delta"},
+      {"name": "db.query.time_period_seconds", "type": "doubleSum", "fieldName": "db.query.time_period_seconds"}
+    ],
+    "granularitySpec": {
+      "type": "uniform",
+      "segmentGranularity": "HOUR",
+      "queryGranularity": "SECOND",
+      "rollup": false
+    }
+  },
+  "ioConfig": {
+    "type": "otlp",
+    "endpoint": "/otlp/v1/logs",
+    "consumerProperties": {
+      "bootstrap.servers": "${KAFKA_BROKER}",
+      "group.id": "druid-otlp-qan"
+    },
+    "topic": "otlp-logs"
+  },
+  "tuningConfig": {
+    "type": "kafka",
+    "maxRowsPerSegment": 5000000,
+    "maxRowsInMemory": 100000
+  }
+}

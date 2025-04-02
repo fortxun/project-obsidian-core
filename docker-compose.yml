@@ -1,0 +1,180 @@
+
+services:
+  # OpenTelemetry Collector with QAN processor
+  otel-collector:
+    image: obsidian-core/otel-collector:latest
+    build:
+      context: ./otel-collector
+      dockerfile: Dockerfile
+    container_name: obsidian-core-otel-collector
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:4317:4317"   # OTLP gRPC
+      - "127.0.0.1:4318:4318"   # OTLP HTTP
+    volumes:
+      - ./otel-collector/config:/etc/otel-collector:ro
+    environment:
+      - MYSQL_HOST=${MYSQL_HOST:-mysql}
+      - MYSQL_PORT=${MYSQL_PORT:-3306}
+      - MYSQL_USER=${MYSQL_USER:-monitor_user}
+      - MYSQL_PASSWORD=${MYSQL_PASSWORD:-password}
+      - MYSQL_DB=${MYSQL_DB:-information_schema}
+      - POSTGRES_HOST=${POSTGRES_HOST:-postgres}
+      - POSTGRES_PORT=${POSTGRES_PORT:-5432}
+      - POSTGRES_USER=${POSTGRES_USER:-monitor_user}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-password}
+      - POSTGRES_DB=${POSTGRES_DB:-postgres}
+      - OTEL_METRICS_INTERVAL=${OTEL_METRICS_INTERVAL:-60}
+      - DRUID_HOST=${DRUID_HOST:-druid-router}
+      - DRUID_PORT=${DRUID_PORT:-8888}
+    networks:
+      - obsidian-network
+    depends_on:
+      - druid-router
+
+  # Druid services
+  druid-coordinator:
+    image: apache/druid:28.0.0
+    container_name: obsidian-core-druid-coordinator
+    restart: unless-stopped
+    volumes:
+      - ./druid/config:/opt/druid/conf/druid/single-server/micro-quickstart/_common
+      - druid-metadata:/opt/druid/var/druid/metadata
+      - druid-segments:/opt/druid/var/druid/segments
+      - druid-indexing-logs:/opt/druid/var/druid/indexing-logs
+    environment:
+      - DRUID_SERVICE=coordinator
+      - DRUID_LOG_LEVEL=INFO
+    command: ["coordinator"]
+    networks:
+      - obsidian-network
+    ports:
+      - "127.0.0.1:8081:8081"
+
+  druid-broker:
+    image: apache/druid:28.0.0
+    container_name: obsidian-core-druid-broker
+    restart: unless-stopped
+    volumes:
+      - ./druid/config:/opt/druid/conf/druid/single-server/micro-quickstart/_common
+      - druid-metadata:/opt/druid/var/druid/metadata
+      - druid-segments:/opt/druid/var/druid/segments
+    environment:
+      - DRUID_SERVICE=broker
+      - DRUID_LOG_LEVEL=INFO
+    command: ["broker"]
+    networks:
+      - obsidian-network
+    ports:
+      - "127.0.0.1:8082:8082"
+
+  druid-historical:
+    image: apache/druid:28.0.0
+    container_name: obsidian-core-druid-historical
+    restart: unless-stopped
+    volumes:
+      - ./druid/config:/opt/druid/conf/druid/single-server/micro-quickstart/_common
+      - druid-segments:/opt/druid/var/druid/segments
+    environment:
+      - DRUID_SERVICE=historical
+      - DRUID_LOG_LEVEL=INFO
+    command: ["historical"]
+    networks:
+      - obsidian-network
+    ports:
+      - "127.0.0.1:8083:8083"
+
+  druid-middlemanager:
+    image: apache/druid:28.0.0
+    container_name: obsidian-core-druid-middlemanager
+    restart: unless-stopped
+    volumes:
+      - ./druid/config:/opt/druid/conf/druid/single-server/micro-quickstart/_common
+      - druid-indexing-logs:/opt/druid/var/druid/indexing-logs
+    environment:
+      - DRUID_SERVICE=middleManager
+      - DRUID_LOG_LEVEL=INFO
+    command: ["middleManager"]
+    networks:
+      - obsidian-network
+    ports:
+      - "127.0.0.1:8091:8091"
+
+  druid-router:
+    image: apache/druid:28.0.0
+    container_name: obsidian-core-druid-router
+    restart: unless-stopped
+    volumes:
+      - ./druid/config:/opt/druid/conf/druid/single-server/micro-quickstart/_common
+    environment:
+      - DRUID_SERVICE=router
+      - DRUID_LOG_LEVEL=INFO
+    command: ["router"]
+    networks:
+      - obsidian-network
+    ports:
+      - "127.0.0.1:8888:8888"
+
+  # JupyterLab for analysis
+  jupyterlab:
+    image: jupyter/datascience-notebook:python-3.10
+    container_name: obsidian-core-jupyter
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:8888:8888"
+    volumes:
+      - ./notebooks:/home/jovyan/work
+    environment:
+      - JUPYTER_ENABLE_LAB=yes
+    command: ["start-notebook.sh", "--NotebookApp.token=''", "--NotebookApp.password=''"]
+    networks:
+      - obsidian-network
+    depends_on:
+      - druid-router
+
+  # Development databases (optional - for testing)
+  mysql:
+    image: mysql:8.0
+    container_name: obsidian-core-mysql
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:3307:3306"
+    environment:
+      - MYSQL_ROOT_PASSWORD=${MYSQL_ROOT_PASSWORD:-password}
+      - MYSQL_DATABASE=test
+      - MYSQL_USER=${MYSQL_USER:-monitor_user}
+      - MYSQL_PASSWORD=${MYSQL_PASSWORD:-password}
+    volumes:
+      - ./mysql/config:/etc/mysql/conf.d:ro
+      - mysql-data:/var/lib/mysql
+    networks:
+      - obsidian-network
+    command: --performance-schema=ON --performance-schema-consumer-events-statements-current=ON --performance-schema-consumer-events-statements-history=ON --performance-schema-consumer-events-statements-history-long=ON
+
+  postgres:
+    image: postgres:16
+    container_name: obsidian-core-postgres
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:5433:5432"
+    environment:
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-password}
+      - POSTGRES_USER=${POSTGRES_USER:-monitor_user}
+      - POSTGRES_DB=${POSTGRES_DB:-postgres}
+    volumes:
+      - ./postgres/config:/etc/postgresql/conf.d:ro
+      - postgres-data:/var/lib/postgresql/data
+    networks:
+      - obsidian-network
+    command: -c shared_preload_libraries=pg_stat_statements -c pg_stat_statements.max=10000 -c pg_stat_statements.track=all
+
+networks:
+  obsidian-network:
+    driver: bridge
+
+volumes:
+  druid-metadata:
+  druid-segments:
+  druid-indexing-logs:
+  mysql-data:
+  postgres-data:

@@ -1,0 +1,14 @@
+[mysqld]
+# Enable Performance Schema
+performance_schema=ON
+performance_schema_consumer_events_statements_current=ON
+performance_schema_consumer_events_statements_history=ON
+performance_schema_consumer_events_statements_history_long=ON
+
+# Set longer query digest text
+performance_schema_max_digest_length=4096
+performance_schema_max_sql_text_length=4096
+
+# Increase memory for Performance Schema
+performance_schema_max_table_instances=500
+performance_schema_max_digest_sample_age=60

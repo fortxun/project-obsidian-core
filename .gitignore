@@ -27,6 +27,7 @@
 # Build output
 /bin/
 /dist/
+otel-collector/collector/
 
 # Logs
 *.log
